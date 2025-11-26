@@ -356,9 +356,7 @@ npm run deploy
 
 - 🌐 Website: [sauldev.es](https://sauldev.es)
 - 💼 LinkedIn: [linkedin.com/in/sbriceño](https://www.linkedin.com/in/sbriceño/)
-- 📧 Email: [andresaul16s@gmail.com](mailto:andresaul16s@gmail.com)
 - 🐙 GitHub: [github.com/AndreSaul16](https://github.com/AndreSaul16)
-- 📱 Teléfono: +34 642 90 11 92
 
 ---
 
