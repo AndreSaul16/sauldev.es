@@ -169,34 +169,97 @@ export const handler = async (event) => {
         }
 
         // Sanitizar inputs
-        const sanitizedData = {
-            name: sanitize(name),
-            message: sanitize(message),
-            email: email ? sanitize(email) : null,
-            phone: phone ? sanitize(phone) : null,
-            createdAt: admin.firestore.FieldValue.serverTimestamp(),
-            ip: ip,
-            userAgent: event.headers['user-agent'] || 'unknown'
-        };
+        const sanitizedName = sanitize(name);
+        const sanitizedMessage = sanitize(message);
+        const sanitizedEmail = email ? sanitize(email) : null;
+        const sanitizedPhone = phone ? sanitize(phone) : null;
+
+        // Generar ID único basado en el nombre (normalizado)
+        const contactId = sanitizedName
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '') // Eliminar acentos
+            .replace(/[^a-z0-9]/g, '-')      // Reemplazar caracteres especiales por guiones
+            .replace(/-+/g, '-')              // Múltiples guiones a uno solo
+            .replace(/^-|-$/g, '');           // Eliminar guiones al inicio/final
 
         // Inicializar Firebase
         initializeFirebase();
         const db = admin.firestore();
 
-        // Guardar en Firestore
-        const contactRef = await db.collection('contacts').add(sanitizedData);
+        // Referencia al documento del contacto
+        const contactRef = db.collection('contacts').doc(contactId);
 
-        console.log(`[${new Date().toISOString()}] Contact saved: ${contactRef.id} from ${ip}`);
+        // Verificar si el contacto ya existe
+        const contactDoc = await contactRef.get();
 
-        return {
-            statusCode: 200,
-            headers,
-            body: JSON.stringify({
-                success: true,
-                message: '¡Gracias! Tu mensaje ha sido enviado exitosamente. Saúl se pondrá en contacto contigo pronto.',
-                contactId: contactRef.id
-            }),
+        const now = admin.firestore.Timestamp.now();
+        const messageData = {
+            content: sanitizedMessage,
+            timestamp: now,
+            ip: ip,
+            userAgent: event.headers['user-agent'] || 'unknown'
         };
+
+        if (contactDoc.exists) {
+            // El contacto ya existe - añadir nuevo mensaje al historial
+            const existingData = contactDoc.data();
+
+            // Actualizar email/phone si se proporcionaron nuevos valores
+            const updates = {
+                messages: admin.firestore.FieldValue.arrayUnion(messageData),
+                lastContactAt: now
+            };
+
+            // Solo actualizar email/phone si se proporcionan y son diferentes
+            if (sanitizedEmail && sanitizedEmail !== existingData.email) {
+                updates.email = sanitizedEmail;
+            }
+            if (sanitizedPhone && sanitizedPhone !== existingData.phone) {
+                updates.phone = sanitizedPhone;
+            }
+
+            await contactRef.update(updates);
+
+            console.log(`[${new Date().toISOString()}] Contact updated: ${contactId} from ${ip}`);
+
+            return {
+                statusCode: 200,
+                headers,
+                body: JSON.stringify({
+                    success: true,
+                    message: '¡Gracias por tu mensaje! Hemos actualizado tu información. Saúl se pondrá en contacto contigo pronto.',
+                    contactId: contactId,
+                    isUpdate: true
+                }),
+            };
+
+        } else {
+            // Nuevo contacto - crear documento
+            const newContactData = {
+                name: sanitizedName,
+                email: sanitizedEmail,
+                phone: sanitizedPhone,
+                messages: [messageData],
+                createdAt: now,
+                lastContactAt: now
+            };
+
+            await contactRef.set(newContactData);
+
+            console.log(`[${new Date().toISOString()}] Contact created: ${contactId} from ${ip}`);
+
+            return {
+                statusCode: 200,
+                headers,
+                body: JSON.stringify({
+                    success: true,
+                    message: '¡Gracias! Tu mensaje ha sido enviado exitosamente. Saúl se pondrá en contacto contigo pronto.',
+                    contactId: contactId,
+                    isUpdate: false
+                }),
+            };
+        }
 
     } catch (error) {
         console.error('Error in save-contact function:', error);
