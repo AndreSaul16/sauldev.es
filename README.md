@@ -55,6 +55,7 @@
 - **Scroll Animations**: Animaciones sincronizadas con el scroll usando GSAP y Framer Motion
 - **Escena 3D Dinámica**: Fondo 3D con partículas y geometrías que responden al movimiento del usuario
 - **Hover Effects**: Efectos visuales premium en todos los elementos interactivos
+- **🤖 Chatbot con IA**: Asistente virtual interactivo con OpenAI que responde preguntas sobre Saúl, sus proyectos y habilidades
 
 ### 📊 Secciones del Portfolio
 
@@ -104,6 +105,13 @@
 | **React Icons** | 5.5.0 | Biblioteca de iconos adicionales |
 | **Leva** | 0.10.1 | GUI de debugging para Three.js |
 
+### Backend / API
+
+| Tecnología | Versión | Propósito |
+|------------|---------|-----------|
+| **OpenAI** | 4.20.0 | API de Inteligencia Artificial para chatbot |
+| **Netlify Functions** | - | Serverless functions para backend |
+
 ### Herramientas de Desarrollo
 
 - **ESLint**: Linting de código JavaScript/React
@@ -133,13 +141,22 @@ npm install
 # o
 yarn install
 
-# 4. Iniciar servidor de desarrollo
+# 4. Configurar variables de entorno (OPCIONAL - Solo si usas el chatbot)
+# Copiar .env.example a .env y añadir tus credenciales de OpenAI
+cp .env.example .env
+# Editar .env con tus valores:
+# OPENAI_KEY_API=tu_api_key
+# OPENAI_ASSISTANT_ID=tu_assistant_id
+
+# 5. Iniciar servidor de desarrollo
 npm run dev
 # o
 yarn dev
 ```
 
 El proyecto estará disponible en `http://localhost:5173`
+
+> **Nota sobre el Chatbot**: El chatbot con IA requiere credenciales de OpenAI. Si no las configuras, el resto del portfolio funcionará normalmente, pero el chatbot no estará operativo.
 
 ---
 
@@ -220,6 +237,7 @@ sauldev.es/
 │   │   │   └── Scene.jsx     # Escena principal Three.js
 │   │   └── UI/               # Componentes de interfaz
 │   │       ├── About.jsx
+│   │       ├── Chatbot.jsx   # Chatbot con OpenAI
 │   │       ├── Contact.jsx
 │   │       ├── CustomCursor.jsx
 │   │       ├── Experience.jsx
@@ -234,9 +252,14 @@ sauldev.es/
 │   ├── data.js               # Datos del portfolio
 │   ├── index.css             # Estilos globales
 │   └── main.jsx              # Punto de entrada
+├── netlify/
+│   └── functions/            # Serverless functions
+│       └── chat.js           # API del chatbot con OpenAI
+├── .env.example              # Ejemplo de variables de entorno
 ├── .gitignore
 ├── eslint.config.js          # Configuración ESLint
 ├── index.html                # HTML principal
+├── netlify.toml              # Configuración de Netlify
 ├── package.json              # Dependencias y scripts
 ├── postcss.config.js         # Configuración PostCSS
 ├── tailwind.config.js        # Configuración Tailwind
@@ -285,6 +308,18 @@ Marquesina infinita con iconos de tecnologías usando Devicon.
 - Animación de scroll infinito
 - Iconos SVG optimizados
 - Responsive y accesible
+
+### `Chatbot.jsx` - Asistente Virtual con IA
+
+Chatbot interactivo flotante que usa OpenAI Assistant API.
+
+**Características:**
+- Botón flotante en esquina inferior derecha
+- Ventana de chat con diseño glassmorphism
+- Conversaciones persistentes por sesión
+- Manejo de estados de carga
+- Límite de 500 caracteres por mensaje
+- Animaciones suaves con Framer Motion
 
 ---
 

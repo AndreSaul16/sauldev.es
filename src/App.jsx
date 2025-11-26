@@ -10,6 +10,7 @@ import Experience from './components/UI/Experience';
 import Projects from './components/UI/Projects';
 import Contact from './components/UI/Contact';
 import FeaturedProjects from './components/UI/FeaturedProjects';
+import Chatbot from './components/UI/Chatbot';
 
 function App() {
   return (
@@ -40,6 +41,9 @@ function App() {
           <p>© {new Date().getFullYear()} Saúl Briceño. Built with React, Three.js & GSAP.</p>
         </footer>
       </main>
+
+      {/* Chatbot flotante */}
+      <Chatbot />
     </div>
   );
 }
