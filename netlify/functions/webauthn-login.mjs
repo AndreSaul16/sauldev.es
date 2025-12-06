@@ -42,12 +42,17 @@ export const handler = async (event) => {
     }
 
     try {
-        const { step, email, response } = JSON.parse(event.body);
+        const { step, email, response, rpID } = JSON.parse(event.body);
+
+        // Use provided rpID or fallback to default
+        const effectiveRPID = rpID || RP_ID;
+        console.log('Using RP_ID:', effectiveRPID);
 
         if (step === 'generate-options') {
             const user = await getUser(email);
 
             if (!user || !user.credentials || user.credentials.length === 0) {
+                console.log('No credentials found for user:', email);
                 return {
                     statusCode: 404,
                     headers,
@@ -55,12 +60,15 @@ export const handler = async (event) => {
                 };
             }
 
+            console.log('Found credentials for user:', user.credentials);
+
             const options = await generateAuthenticationOptions({
-                rpID: RP_ID,
+                rpID: effectiveRPID,
                 allowCredentials: user.credentials.map(cred => ({
                     id: cred.id || cred.credentialID,
                     type: 'public-key',
-                    transports: cred.transports,
+                    // Removed transports to avoid filtering issues
+                    // transports: cred.transports,
                 })),
                 userVerification: 'preferred',
             });
@@ -134,8 +142,8 @@ export const handler = async (event) => {
             const verification = await verifyAuthenticationResponse({
                 response,
                 expectedChallenge,
-                expectedOrigin: ORIGIN,
-                expectedRPID: RP_ID,
+                expectedOrigin: ORIGIN, // See note above about origin
+                expectedRPID: effectiveRPID,
                 authenticator,
             });
 

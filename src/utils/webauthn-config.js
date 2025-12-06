@@ -4,6 +4,6 @@ const hostname = window.location.hostname;
 
 // En producción (sauldev.es), el RP ID suele ser el dominio raíz (sin subdominios si quieres compartir credenciales)
 // En desarrollo, es 'localhost'
-export const RP_ID = hostname === 'localhost' ? 'localhost' : 'sauldev.es';
+export const RP_ID = window.location.hostname === 'sauldev.es' ? 'sauldev.es' : window.location.hostname;
 
 console.log(`[WebAuthn] Configured RP_ID: ${RP_ID}`);

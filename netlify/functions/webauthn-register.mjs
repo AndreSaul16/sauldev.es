@@ -63,7 +63,11 @@ export const handler = async (event) => {
     }
 
     try {
-        const { step, email, response } = JSON.parse(event.body);
+        const { step, email, response, rpID } = JSON.parse(event.body);
+
+        // Use provided rpID or fallback to default
+        const effectiveRPID = rpID || RP_ID;
+        console.log('Using RP_ID:', effectiveRPID);
 
         if (step === 'generate-options') {
             const existingUser = await getUser(email);
@@ -83,7 +87,7 @@ export const handler = async (event) => {
 
             const options = await generateRegistrationOptions({
                 rpName: RP_NAME,
-                rpID: RP_ID,
+                rpID: effectiveRPID,
                 userID: userIDBuffer,
                 userName: email,
                 attestationType: 'none',
@@ -127,8 +131,8 @@ export const handler = async (event) => {
             const verification = await verifyRegistrationResponse({
                 response,
                 expectedChallenge,
-                expectedOrigin: ORIGIN,
-                expectedRPID: RP_ID,
+                expectedOrigin: ORIGIN, // Note: Origin might also need to be dynamic for non-localhost/prod, but start with RP_ID
+                expectedRPID: effectiveRPID,
             });
 
             if (verification.verified) {
@@ -145,6 +149,7 @@ export const handler = async (event) => {
                     transports: response.response.transports || []
                 }];
 
+                console.log('Saving new user credentials:', { email, credentials });
                 await saveUser(email, credentials);
 
                 // Generar Custom Token

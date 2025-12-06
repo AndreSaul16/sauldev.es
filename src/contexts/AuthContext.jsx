@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { startRegistration, startAuthentication } from '@simplewebauthn/browser';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInWithCustomToken, signOut, onAuthStateChanged } from 'firebase/auth';
-import { RP_ID } from '../utils/webauthn-config';
+
 
 // Firebase Configuration (Client)
 const firebaseConfig = {
@@ -57,7 +57,7 @@ export const AuthProvider = ({ children }) => {
             const optionsRes = await fetch('/.netlify/functions/webauthn-register', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ step: 'generate-options', email }),
+                body: JSON.stringify({ step: 'generate-options', email, rpID: RP_ID }),
             });
 
             if (!optionsRes.ok) {
@@ -107,39 +107,16 @@ export const AuthProvider = ({ children }) => {
         }
     };
 
-    // Helpers for manual WebAuthn handling
-    const base64URLToBuffer = (base64URL) => {
-        const base64 = base64URL.replace(/-/g, '+').replace(/_/g, '/');
-        const padLen = (4 - (base64.length % 4)) % 4;
-        const padded = base64.padEnd(base64.length + padLen, '=');
-        const binary = atob(padded);
-        const buffer = new Uint8Array(binary.length);
-        for (let i = 0; i < binary.length; i++) {
-            buffer[i] = binary.charCodeAt(i);
-        }
-        return buffer;
-    };
 
-    const bufferToBase64URL = (buffer) => {
-        const bytes = new Uint8Array(buffer);
-        let string = '';
-        for (let i = 0; i < bytes.byteLength; i++) {
-            string += String.fromCharCode(bytes[i]);
-        }
-        return btoa(string)
-            .replace(/\+/g, '-')
-            .replace(/\//g, '_')
-            .replace(/=/g, '');
-    };
 
     const login = async (email) => {
         setIsLoading(true);
         try {
-            // Step 1: Get authentication options from server
-            const optionsRes = await fetch('/.netlify/functions/webauthn-login', {
+            // Step 1: Get registration options from server
+            const optionsRes = await fetch('/.netlify/functions/webauthn-register', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ step: 'generate-options', email }),
+                body: JSON.stringify({ step: 'generate-options', email, rpID: RP_ID }),
             });
 
             if (!optionsRes.ok) {
@@ -149,44 +126,8 @@ export const AuthProvider = ({ children }) => {
 
             const options = await optionsRes.json();
 
-            // Step 2: Start authentication with WebAuthn (MANUAL WAY)
-            // Transform options for navigator.credentials.get
-            const publicKey = {
-                ...options,
-                challenge: base64URLToBuffer(options.challenge),
-                rpId: RP_ID,
-                allowCredentials: options.allowCredentials.map((cred) => ({
-                    ...cred,
-                    id: base64URLToBuffer(cred.id),
-                })),
-                userVerification: 'preferred',
-            };
-
-            console.log('[WebAuthn] Starting assertion with options:', publicKey);
-
-            let credential;
-            try {
-                credential = await navigator.credentials.get({ publicKey });
-            } catch (err) {
-                if (err.name === 'NotAllowedError') {
-                    throw new Error("No se encontró ninguna credencial válida o se canceló la operación.");
-                }
-                throw err;
-            }
-
-            // Transform response for backend
-            const authResp = {
-                id: credential.id,
-                rawId: bufferToBase64URL(credential.rawId),
-                response: {
-                    authenticatorData: bufferToBase64URL(credential.response.authenticatorData),
-                    clientDataJSON: bufferToBase64URL(credential.response.clientDataJSON),
-                    signature: bufferToBase64URL(credential.response.signature),
-                    userHandle: credential.response.userHandle ? bufferToBase64URL(credential.response.userHandle) : undefined,
-                },
-                type: credential.type,
-                clientExtensionResults: credential.getClientExtensionResults(),
-            };
+            // Step 2: Start authentication with WebAuthn
+            const authResp = await startAuthentication(options);
 
             // Step 3: Verify authentication on server
             const verifyRes = await fetch('/.netlify/functions/webauthn-login', {
