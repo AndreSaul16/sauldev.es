@@ -1,8 +1,9 @@
 import {
     generateRegistrationOptions,
-    verifyRegistrationResponse
+    verifyRegistrationResponse,
+    isoBase64URL
 } from '@simplewebauthn/server';
-import { getDb, COLLECTIONS, admin } from './utils/firebase-admin.js';
+import { getDb, COLLECTIONS, admin } from './utils/firebase-admin.mjs';
 
 const RP_NAME = 'SaulDev Portfolio';
 const RP_ID = process.env.RP_ID || 'localhost';
@@ -78,7 +79,7 @@ export const handler = async (event) => {
                 };
             }
 
-            // Convert email to Uint8Array for userID (required by @simplewebauthn/server v9+)
+            // Convert email to Uint8Array for userID
             const userIDBuffer = new TextEncoder().encode(email);
 
             const options = await generateRegistrationOptions({
@@ -88,13 +89,18 @@ export const handler = async (event) => {
                 userName: email,
                 attestationType: 'none',
                 authenticatorSelection: {
-                    authenticatorAttachment: 'platform', // Force Windows Hello / Touch ID
+                    authenticatorAttachment: 'platform',
                     residentKey: 'preferred',
                     userVerification: 'preferred',
                 },
             });
 
-            global.currentChallenge = options.challenge;
+            // GUARDAR CHALLENGE EN FIRESTORE
+            const db = getDb();
+            await db.collection(COLLECTIONS.CHALLENGES).doc(email).set({
+                challenge: options.challenge,
+                createdAt: new Date().toISOString()
+            });
 
             return {
                 statusCode: 200,
@@ -103,15 +109,21 @@ export const handler = async (event) => {
             };
 
         } else if (step === 'verify-registration') {
-            const expectedChallenge = global.currentChallenge;
+            const db = getDb();
+            const challengeDoc = await db.collection(COLLECTIONS.CHALLENGES).doc(email).get();
 
-            if (!expectedChallenge) {
+            if (!challengeDoc.exists) {
                 return {
                     statusCode: 400,
                     headers,
-                    body: JSON.stringify({ error: 'Challenge not found' }),
+                    body: JSON.stringify({ error: 'Challenge not found or expired' }),
                 };
             }
+
+            const { challenge: expectedChallenge } = challengeDoc.data();
+
+            // BORRAR CHALLENGE (Atomicidad)
+            await db.collection(COLLECTIONS.CHALLENGES).doc(email).delete();
 
             const verification = await verifyRegistrationResponse({
                 response,
@@ -127,29 +139,16 @@ export const handler = async (event) => {
                 const credentialPublicKey = registrationInfo.credentialPublicKey || registrationInfo.credential?.publicKey;
                 const counter = registrationInfo.counter !== undefined ? registrationInfo.counter : 0;
 
-                if (!credentialID || !credentialPublicKey) {
-                    console.error('Registration Info structure:', Object.keys(registrationInfo));
-                    return {
-                        statusCode: 500,
-                        headers,
-                        body: JSON.stringify({
-                            error: 'Failed to extract credential data',
-                            debug: Object.keys(registrationInfo)
-                        }),
-                    };
-                }
-
                 const credentials = [{
-                    credentialID: Buffer.from(credentialID).toString('base64'),
-                    credentialPublicKey: Buffer.from(credentialPublicKey).toString('base64'),
+                    id: isoBase64URL.fromBuffer(credentialID),
+                    publicKey: isoBase64URL.fromBuffer(credentialPublicKey),
                     counter,
-                    transports: response.response.transports || ['internal'], // Guardar transports
+                    transports: response.response.transports || []
                 }];
 
                 await saveUser(email, credentials);
-                delete global.currentChallenge;
 
-                // Generar Custom Token de Firebase para auto-login
+                // Generar Custom Token
                 const customToken = await admin.auth().createCustomToken(email);
 
                 return {

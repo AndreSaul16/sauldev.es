@@ -1,4 +1,4 @@
-import { getDb, COLLECTIONS } from './utils/firebase-admin.js';
+import { getDb, COLLECTIONS } from './utils/firebase-admin.mjs';
 
 const headers = {
     'Access-Control-Allow-Origin': '*',

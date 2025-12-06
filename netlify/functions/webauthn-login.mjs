@@ -1,8 +1,9 @@
 import {
     generateAuthenticationOptions,
-    verifyAuthenticationResponse
+    verifyAuthenticationResponse,
+    isoBase64URL
 } from '@simplewebauthn/server';
-import { getDb, COLLECTIONS, admin } from './utils/firebase-admin.js';
+import { getDb, COLLECTIONS, admin } from './utils/firebase-admin.mjs';
 
 const RP_ID = process.env.RP_ID || 'localhost';
 const ORIGIN = process.env.ORIGIN || 'http://localhost:8888';
@@ -57,28 +58,20 @@ export const handler = async (event) => {
 
             const options = await generateAuthenticationOptions({
                 rpID: RP_ID,
-                allowCredentials: user.credentials.map(cred => {
-                    let credId;
-                    if (typeof cred.credentialID === 'string') {
-                        // Ensure it is Base64URL
-                        credId = Buffer.from(cred.credentialID, 'base64').toString('base64url');
-                    } else if (cred.credentialID.data) {
-                        credId = Buffer.from(cred.credentialID.data).toString('base64url');
-                    } else {
-                        credId = cred.credentialID;
-                    }
-
-                    return {
-                        id: credId,
-                        type: 'public-key',
-                        transports: cred.transports || ['internal', 'hybrid'],
-                    };
-                }),
+                allowCredentials: user.credentials.map(cred => ({
+                    id: cred.id || cred.credentialID,
+                    type: 'public-key',
+                    transports: cred.transports,
+                })),
                 userVerification: 'preferred',
             });
 
-            global.currentChallenge = options.challenge;
-            global.currentEmail = email;
+            // GUARDAR CHALLENGE EN FIRESTORE
+            const db = getDb();
+            await db.collection(COLLECTIONS.CHALLENGES).doc(email).set({
+                challenge: options.challenge,
+                createdAt: new Date().toISOString()
+            });
 
             return {
                 statusCode: 200,
@@ -87,14 +80,28 @@ export const handler = async (event) => {
             };
 
         } else if (step === 'verify-authentication') {
-            const expectedChallenge = global.currentChallenge;
-            const expectedEmail = global.currentEmail;
+            const db = getDb();
+            const challengeDoc = await db.collection(COLLECTIONS.CHALLENGES).doc(email).get();
 
-            if (!expectedChallenge || !expectedEmail) {
+            if (!challengeDoc.exists) {
                 return {
                     statusCode: 400,
                     headers,
-                    body: JSON.stringify({ error: 'Challenge not found' }),
+                    body: JSON.stringify({ error: 'Challenge not found or expired' }),
+                };
+            }
+
+            const { challenge: expectedChallenge } = challengeDoc.data();
+            const expectedEmail = email;
+
+            // BORRAR CHALLENGE (Atomicidad)
+            await db.collection(COLLECTIONS.CHALLENGES).doc(email).delete();
+
+            if (!expectedEmail) { // Redundant logic removal, kept for flow
+                return {
+                    statusCode: 400,
+                    headers,
+                    body: JSON.stringify({ error: 'Email context missing' }),
                 };
             }
 
@@ -108,10 +115,20 @@ export const handler = async (event) => {
                 };
             }
 
-            const credential = user.credentials[0];
+            // Find the credential that matches the response id
+            const credential = user.credentials.find(cred => (cred.id || cred.credentialID) === response.id);
+
+            if (!credential) {
+                return {
+                    statusCode: 400,
+                    headers,
+                    body: JSON.stringify({ error: 'Credential not found' }),
+                };
+            }
+
             const authenticator = {
-                credentialID: Buffer.from(credential.credentialID, 'base64'),
-                credentialPublicKey: Buffer.from(credential.credentialPublicKey, 'base64'),
+                credentialID: isoBase64URL.toBuffer(credential.id || credential.credentialID),
+                credentialPublicKey: isoBase64URL.toBuffer(credential.publicKey || credential.credentialPublicKey),
                 counter: credential.counter,
             };
 
@@ -124,9 +141,6 @@ export const handler = async (event) => {
             });
 
             if (verification.verified) {
-                delete global.currentChallenge;
-                delete global.currentEmail;
-
                 // Generar Custom Token de Firebase
                 const customToken = await admin.auth().createCustomToken(expectedEmail);
 

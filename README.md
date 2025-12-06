@@ -69,7 +69,7 @@
 8. **Blog**: Sistema completo de blog con Markdown, editor para usuarios autenticados y lista pública de posts
 9. **Newsletter**: Suscripción a newsletter integrado con el blog
 10. **Contact**: Formulario de contacto con validación
-11. **Autenticación**: Sistema de login sin contraseña usando WebAuthn (biometría)
+11. **Autenticación**: Sistema de login sin contraseña usando WebAuthn (biometría) con persistencia segura de challenges en Firestore.
 
 ### 🎨 Diseño Visual
 
@@ -116,6 +116,7 @@
 | **Firebase Admin** | 13.6.0 | SDK del lado del servidor para Firebase |
 | **OpenAI** | 4.104.0 | API de Inteligencia Artificial para chatbot |
 | **SimpleWebAuthn** | 13.2.2 | Autenticación sin contraseña (WebAuthn) |
+| **Firestore** | - | Persistencia de desafíos (Challenges) y usuarios |
 | **Netlify Functions** | - | Serverless functions para backend |
 
 ### Herramientas de Desarrollo
