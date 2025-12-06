@@ -23,13 +23,19 @@ export function getDb() {
                 privateKey = privateKey.replace(/\\n/g, '\n');
             }
 
-            if (!process.env.FIREBASE_CLIENT_EMAIL || !privateKey) {
-                throw new Error('Missing Firebase Admin credentials');
+            // Usar VITE_FIREBASE_PROJECT_ID como fallback (es la que existe en Netlify)
+            const projectId = process.env.FIREBASE_PROJECT_ID || process.env.VITE_FIREBASE_PROJECT_ID;
+
+            if (!process.env.FIREBASE_CLIENT_EMAIL || !privateKey || !projectId) {
+                throw new Error('Missing Firebase Admin credentials: ' +
+                    (!projectId ? 'PROJECT_ID ' : '') +
+                    (!process.env.FIREBASE_CLIENT_EMAIL ? 'CLIENT_EMAIL ' : '') +
+                    (!privateKey ? 'PRIVATE_KEY' : ''));
             }
 
             admin.initializeApp({
                 credential: admin.credential.cert({
-                    projectId: process.env.FIREBASE_PROJECT_ID,
+                    projectId: projectId,
                     clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
                     privateKey: privateKey,
                 }),
