@@ -1,7 +1,6 @@
 import {
     generateRegistrationOptions,
     verifyRegistrationResponse,
-    isoBase64URL
 } from '@simplewebauthn/server';
 import { getDb, COLLECTIONS, admin } from './utils/firebase-admin.mjs';
 
@@ -140,8 +139,8 @@ export const handler = async (event) => {
                 const counter = registrationInfo.counter !== undefined ? registrationInfo.counter : 0;
 
                 const credentials = [{
-                    id: isoBase64URL.fromBuffer(credentialID),
-                    publicKey: isoBase64URL.fromBuffer(credentialPublicKey),
+                    id: Buffer.from(credentialID).toString('base64url'),
+                    publicKey: Buffer.from(credentialPublicKey).toString('base64url'),
                     counter,
                     transports: response.response.transports || []
                 }];

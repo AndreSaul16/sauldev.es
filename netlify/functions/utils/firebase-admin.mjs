@@ -1,10 +1,14 @@
 import admin from 'firebase-admin';
 
-// Inicializar Firebase Admin
-NEWSLETTER: 'newsletter',
+const COLLECTIONS = {
+    USERS: 'users',
+    POSTS: 'posts',
+    NEWSLETTER: 'newsletter',
     CONTACTS: 'contacts',
-        CHALLENGES: 'challenges'
+    CHALLENGES: 'challenges'
 };
+
+let db;
 
 export function getDb() {
     if (!admin.apps.length) {
@@ -36,6 +40,10 @@ export function getDb() {
             throwWrapper(error);
         }
     }
+
+    if (!db) {
+        db = admin.firestore();
+    }
     return db;
 }
 
@@ -43,4 +51,4 @@ function throwWrapper(err) {
     throw err;
 }
 
-export { admin };
+export { admin, COLLECTIONS };

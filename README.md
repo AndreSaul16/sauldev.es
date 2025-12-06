@@ -69,7 +69,7 @@
 8. **Blog**: Sistema completo de blog con Markdown, editor para usuarios autenticados y lista pública de posts
 9. **Newsletter**: Suscripción a newsletter integrado con el blog
 10. **Contact**: Formulario de contacto con validación
-11. **Autenticación**: Sistema de login sin contraseña usando WebAuthn (biometría) con persistencia segura de challenges en Firestore.
+11. **Autenticación**: Sistema de login sin contraseña usando WebAuthn (biometría).
 
 ### 🎨 Diseño Visual
 

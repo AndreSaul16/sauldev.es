@@ -1,7 +1,6 @@
 import {
     generateAuthenticationOptions,
     verifyAuthenticationResponse,
-    isoBase64URL
 } from '@simplewebauthn/server';
 import { getDb, COLLECTIONS, admin } from './utils/firebase-admin.mjs';
 
@@ -127,8 +126,8 @@ export const handler = async (event) => {
             }
 
             const authenticator = {
-                credentialID: isoBase64URL.toBuffer(credential.id || credential.credentialID),
-                credentialPublicKey: isoBase64URL.toBuffer(credential.publicKey || credential.credentialPublicKey),
+                credentialID: Buffer.from(credential.id || credential.credentialID, 'base64url'),
+                credentialPublicKey: Buffer.from(credential.publicKey || credential.credentialPublicKey, 'base64url'),
                 counter: credential.counter,
             };
 
